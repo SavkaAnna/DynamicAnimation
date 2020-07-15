@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Task=)</title>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+
+    <script type="module">
+      import { World, System, Component, TagComponent, Types } from "https://ecsy.io/build/ecsy.module.js";
+
+      const NUM_ELEMENTS = 40;
+      const SPEED_MULTIPLIER = 0.2;
+      const SHAPE_SIZE = Math.random() * 10;
+      const SHAPE_HALF_SIZE = SHAPE_SIZE / 2;
+
+      let canvas = document.querySelector("canvas");
+      let canvasWidth = canvas.width = window.innerWidth;
+      let canvasHeight = canvas.height = window.innerHeight;
+      let ctx = canvas.getContext("2d");
+
+      window.addEventListener('click', () => {
+        
+        for (let i = 0; i < NUM_ELEMENTS; i++) {
+          const timer = getRandomTimer()
+          const entity = world
+            .createEntity()
+            .addComponent(Velocity, getRandomVelocity())
+            .addComponent(Shape, getRandomShape())
+            .addComponent(Position, getRandomPosition())
+            .addComponent(Size, getRandomSize())
+            .addComponent(Timer, timer)
+            .addComponent(Renderable)
+
+          setTimeout(() => entity.remove(), timer.timer)    
+        }
+        run(); 
+      })
+     
+      class Velocity extends Component {}
+
+      Velocity.schema = {
+        x: { type: Types.Number },
+        y: { type: Types.Number }
+      };
+
+      class Position extends Component {}
+
+      Position.schema = {
+        x: { type: Types.Number, default:0 },
+        y: { type: Types.Number, default:0 }
+      };
+
+      class Shape extends Component {}
+
+      Shape.schema = {
+        primitive: { type: Types.String, default: 'box' }
+      };
+
+      class Size extends Component {}
+
+      Size.schema = {
+          size: {type: Types.Number}
+      };
+
+      class Timer extends Component {}
+
+      Timer.schema = {
+        timer: {type: Types.Number}
+      }
+
+      class Renderable extends TagComponent {}
+
+      
+      class MovableSystem extends System {
+        
+        execute(delta, time) {
+          this.queries.moving.results.forEach(entity => {
+            var velocity = entity.getComponent(Velocity);
+            var position = entity.getMutableComponent(Position);
+            position.x += velocity.x * delta;
+            position.y += velocity.y * delta;
+            
+            if (position.x > canvasWidth + SHAPE_HALF_SIZE) position.x = - SHAPE_HALF_SIZE;
+            if (position.x < - SHAPE_HALF_SIZE) position.x = canvasWidth + SHAPE_HALF_SIZE;
+            if (position.y > canvasHeight + SHAPE_HALF_SIZE) position.y = - SHAPE_HALF_SIZE;
+            if (position.y < - SHAPE_HALF_SIZE) position.y = canvasHeight + SHAPE_HALF_SIZE;
+          });
+        }
+      }
+
+      MovableSystem.queries = {
+        moving: {
+          components: [Velocity, Position]
+        }
+      }
+
+      class RendererSystem extends System {
+    
+        execute(delta, time) {
+          ctx.fillStyle = "#fff";
+          ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+          this.queries.renderables.results.forEach(entity => {
+            var shape = entity.getComponent(Shape);
+            var position = entity.getComponent(Position);
+            var size = entity.getComponent(Size);
+
+            if (shape.primitive === 'box') {
+              this.drawBox(position, size.size);
+            } else {
+              this.drawCircle(position, size.size);
+            }
+          });
+        }
+
+        drawCircle(position, size) {
+          ctx.beginPath();
+          ctx.arc(position.x, position.y, size, 0, 2 * Math.PI, false);
+          ctx.fillStyle= "#8c898b";
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#625e60";
+          ctx.stroke();      
+        }
+
+        drawBox(position, size, timer) {
+          ctx.beginPath();
+          ctx.rect(position.x - size, position.y - size, size*2, size*2);
+          ctx.fillStyle= "#ff8e80";
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = "#af564f";
+          ctx.stroke();                      
+        }
+      }
+
+      RendererSystem.queries = {
+        renderables: { components: [Renderable, Shape, Size] }
+      }
+
+      var world = new World();
+      world
+        .registerComponent(Velocity)
+        .registerComponent(Position)
+        .registerComponent(Shape)
+        .registerComponent(Size)
+        .registerComponent(Timer)
+        .registerComponent(Renderable)
+        .registerSystem(MovableSystem)
+        .registerSystem(RendererSystem);
+
+      function getRandomVelocity() {
+        return {
+          x: SPEED_MULTIPLIER * (2 * Math.random() - 1), 
+          y: SPEED_MULTIPLIER * (2 * Math.random() - 1)
+        };
+      }
+
+      function getRandomPosition() {
+        return { 
+          x: window.event.clientX, 
+          y: window.event.clientY
+        };
+      }
+
+      function getRandomShape() {
+         return {
+           primitive: Math.random() >= 0.5 ? 'circle' : 'box'
+         };
+      }
+
+      function getRandomSize() {
+          return {
+            size: Math.random() * 7
+          };
+      }
+
+      function getRandomTimer() {
+        return {
+          timer: Math.floor(Math.random()*5 + 1)*1000
+        };
+      }
+
+      function run() {
+        var time = performance.now();
+        var delta = time - lastTime;
+        
+        world.execute(delta, time);
+
+        lastTime = time;
+        requestAnimationFrame(run);
+      }
+
+      var lastTime = performance.now();
+           
+    </script>
+  </head>  
+  <body>
+    <canvas width="500" height="500"></canvas>
+  </body>
+</html>
